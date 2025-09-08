@@ -1,0 +1,393 @@
+import React, { useState, useCallback } from 'react';
+import { Plus, Search, RotateCcw, Play } from 'lucide-react';
+
+// BST Node class
+class TreeNode {
+  constructor(value) {
+    this.value = value;
+    this.left = null;
+    this.right = null;
+  }
+}
+
+// BST class with operations
+class BST {
+  constructor() {
+    this.root = null;
+  }
+
+  insert(value) {
+    this.root = this._insertNode(this.root, value);
+  }
+
+  _insertNode(node, value) {
+    if (node === null) {
+      return new TreeNode(value);
+    }
+
+    if (value < node.value) {
+      node.left = this._insertNode(node.left, value);
+    } else if (value > node.value) {
+      node.right = this._insertNode(node.right, value);
+    }
+    
+    return node;
+  }
+
+  search(value) {
+    return this._searchNode(this.root, value);
+  }
+
+  _searchNode(node, value) {
+    if (node === null) {
+      return false;
+    }
+
+    if (value === node.value) {
+      return true;
+    }
+
+    if (value < node.value) {
+      return this._searchNode(node.left, value);
+    } else {
+      return this._searchNode(node.right, value);
+    }
+  }
+
+  getSearchPath(value) {
+    const path = [];
+    this._getSearchPath(this.root, value, path);
+    return path;
+  }
+
+  _getSearchPath(node, value, path) {
+    if (node === null) {
+      return false;
+    }
+
+    path.push(node.value);
+
+    if (value === node.value) {
+      return true;
+    }
+
+    if (value < node.value) {
+      return this._getSearchPath(node.left, value, path);
+    } else {
+      return this._getSearchPath(node.right, value, path);
+    }
+  }
+}
+
+// Tree visualization component
+const TreeVisualization = ({ root, highlightedNodes, searchPath }) => {
+  const calculatePositions = (node, x = 400, y = 80, level = 0) => {
+    if (!node) return [];
+
+    const positions = [{ node, x, y, level }];
+    const horizontalSpacing = Math.max(200 / (level + 1), 50);
+
+    if (node.left) {
+      positions.push(...calculatePositions(node.left, x - horizontalSpacing, y + 100, level + 1));
+    }
+    if (node.right) {
+      positions.push(...calculatePositions(node.right, x + horizontalSpacing, y + 100, level + 1));
+    }
+
+    return positions;
+  };
+
+  const positions = calculatePositions(root);
+
+  const getNodeColor = (nodeValue) => {
+    if (searchPath && searchPath.includes(nodeValue)) {
+      return searchPath[searchPath.length - 1] === nodeValue ? 
+        'bg-green-500 border-green-600' : 'bg-yellow-400 border-yellow-500';
+    }
+    if (highlightedNodes && highlightedNodes.includes(nodeValue)) {
+      return 'bg-blue-500 border-blue-600';
+    }
+    return 'bg-gray-100 border-gray-300';
+  };
+
+  const getTextColor = (nodeValue) => {
+    if (searchPath && searchPath.includes(nodeValue)) {
+      return 'text-white';
+    }
+    if (highlightedNodes && highlightedNodes.includes(nodeValue)) {
+      return 'text-white';
+    }
+    return 'text-gray-800';
+  };
+
+  if (!root) {
+    return (
+      <div className="flex items-center justify-center h-96 text-gray-500 text-lg">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🌳</div>
+          <div>Tree is empty. Start by adding some nodes!</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-96 overflow-hidden">
+      <svg className="w-full h-full" viewBox="0 0 800 400">
+        {/* Draw edges */}
+        {positions.map(({ node, x, y }) => (
+          <g key={`edges-${node.value}`}>
+            {node.left && (
+              <line
+                x1={x}
+                y1={y}
+                x2={x - Math.max(200 / (positions.find(p => p.node === node).level + 1), 50)}
+                y2={y + 100}
+                stroke="#6B7280"
+                strokeWidth="2"
+              />
+            )}
+            {node.right && (
+              <line
+                x1={x}
+                y1={y}
+                x2={x + Math.max(200 / (positions.find(p => p.node === node).level + 1), 50)}
+                y2={y + 100}
+                stroke="#6B7280"
+                strokeWidth="2"
+              />
+            )}
+          </g>
+        ))}
+
+        {/* Draw nodes */}
+        {positions.map(({ node, x, y }) => (
+          <g key={`node-${node.value}`}>
+            <circle
+              cx={x}
+              cy={y}
+              r="25"
+              className={`${getNodeColor(node.value)} stroke-2 transition-colors duration-300`}
+              fill="currentColor"
+            />
+            <text
+              x={x}
+              y={y + 5}
+              textAnchor="middle"
+              className={`${getTextColor(node.value)} font-bold text-sm transition-colors duration-300`}
+              fill="currentColor"
+            >
+              {node.value}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+};
+
+export default function BSTVisualizer() {
+  const [bst] = useState(new BST());
+  const [inputValue, setInputValue] = useState('');
+  const [searchValue, setSearchValue] = useState('');
+  const [treeState, setTreeState] = useState(0); // Force re-render
+  const [searchPath, setSearchPath] = useState(null);
+  const [message, setMessage] = useState('');
+
+  const updateTree = useCallback(() => {
+    setTreeState(prev => prev + 1);
+  }, []);
+
+  const handleInsert = () => {
+    const value = parseInt(inputValue);
+    if (isNaN(value)) {
+      setMessage('Please enter a valid number');
+      return;
+    }
+
+    if (bst.search(value)) {
+      setMessage(`Value ${value} already exists in the tree`);
+      return;
+    }
+
+    bst.insert(value);
+    setInputValue('');
+    setMessage(`Added ${value} to the tree`);
+    setSearchPath(null);
+    updateTree();
+  };
+
+  const handleSearch = () => {
+    const value = parseInt(searchValue);
+    if (isNaN(value)) {
+      setMessage('Please enter a valid number to search');
+      return;
+    }
+
+    const path = bst.getSearchPath(value);
+    const found = bst.search(value);
+    
+    setSearchPath(path);
+    setMessage(found ? 
+      `Found ${value}! Search path: ${path.join(' → ')}` : 
+      `${value} not found. Search path: ${path.join(' → ')}`
+    );
+  };
+
+  const handleReset = () => {
+    bst.root = null;
+    setSearchPath(null);
+    setMessage('Tree cleared');
+    updateTree();
+  };
+
+  const loadExample = () => {
+    bst.root = null;
+    const values = [50, 30, 70, 20, 40, 60, 80, 10, 25, 35, 45];
+    values.forEach(value => bst.insert(value));
+    setSearchPath(null);
+    setMessage('Loaded example tree with values: ' + values.join(', '));
+    updateTree();
+  };
+
+  const handleKeyPress = (e, action) => {
+    if (e.key === 'Enter') {
+      action();
+    }
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto p-6 bg-white">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          Binary Search Tree Visualizer
+        </h1>
+        <p className="text-gray-600">
+          Interactive tool for learning BST operations and structure
+        </p>
+      </div>
+
+      {/* Controls */}
+      <div className="bg-gray-50 rounded-lg p-6 mb-6">
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Insert Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+              <Plus className="w-5 h-5" />
+              Insert Node
+            </h3>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyPress={(e) => handleKeyPress(e, handleInsert)}
+                placeholder="Enter number"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                onClick={handleInsert}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Search Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
+              <Search className="w-5 h-5" />
+              Search Node
+            </h3>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                onKeyPress={(e) => handleKeyPress(e, handleSearch)}
+                placeholder="Enter number"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+              <button
+                onClick={handleSearch}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+              >
+                <Search className="w-4 h-4" />
+                Find
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={loadExample}
+            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center gap-2"
+          >
+            <Play className="w-4 h-4" />
+            Load Example
+          </button>
+          <button
+            onClick={handleReset}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center gap-2"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Clear Tree
+          </button>
+        </div>
+
+        {/* Message Display */}
+        {message && (
+          <div className="mt-4 p-3 bg-blue-50 border-l-4 border-blue-500 text-blue-700">
+            {message}
+          </div>
+        )}
+      </div>
+
+      {/* Tree Visualization */}
+      <div className="bg-white border-2 border-gray-200 rounded-lg p-4">
+        <TreeVisualization 
+          root={bst.root} 
+          searchPath={searchPath}
+        />
+      </div>
+
+      {/* Legend */}
+      <div className="mt-6 bg-gray-50 rounded-lg p-4">
+        <h3 className="text-lg font-semibold text-gray-700 mb-3">Color Legend:</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-gray-100 border-2 border-gray-300 rounded-full"></div>
+            <span>Normal Node</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-yellow-400 border-2 border-yellow-500 rounded-full"></div>
+            <span>Search Path</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-green-500 border-2 border-green-600 rounded-full"></div>
+            <span>Found/Target</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-blue-500 border-2 border-blue-600 rounded-full"></div>
+            <span>Recently Added</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Educational Notes */}
+      <div className="mt-6 bg-indigo-50 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-indigo-800 mb-3">BST Properties:</h3>
+        <ul className="text-indigo-700 space-y-2 text-sm">
+          <li>• Left subtree values are always less than the parent node</li>
+          <li>• Right subtree values are always greater than the parent node</li>
+          <li>• Search, insert, and delete operations have O(log n) average time complexity</li>
+          <li>• In-order traversal gives values in sorted order</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
